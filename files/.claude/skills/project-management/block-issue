@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Marks an issue as blocked by another issue via GitHub's addBlockedBy API.
+# Usage: block-issue <issue-number> --by <blocker-number>
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+
+ISSUE=""
+BLOCKER=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --by) BLOCKER="$2"; shift 2 ;;
+    *)
+      if [[ -z "$ISSUE" ]]; then
+        ISSUE="$1"; shift
+      else
+        echo "Unknown argument: $1" >&2; exit 1
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "$ISSUE" || -z "$BLOCKER" ]]; then
+  echo "Usage: block-issue <issue-number> --by <blocker-number>" >&2
+  exit 1
+fi
+
+BLOCKER_ID=$(gh api graphql \
+  -f query="query { repository(owner:\"$REPO_OWNER\", name:\"$REPO_NAME\") { issue(number:$BLOCKER) { id } } }" \
+  --jq '.data.repository.issue.id')
+
+ISSUE_ID=$(gh api graphql \
+  -f query="query { repository(owner:\"$REPO_OWNER\", name:\"$REPO_NAME\") { issue(number:$ISSUE) { id } } }" \
+  --jq '.data.repository.issue.id')
+
+gh api graphql \
+  -f query="mutation { addBlockedBy(input: { issueId: \"$ISSUE_ID\", blockingIssueId: \"$BLOCKER_ID\" }) { clientMutationId } }" \
+  --silent
+
+echo "#$ISSUE is now blocked by #$BLOCKER"

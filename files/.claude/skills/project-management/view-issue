@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Displays an issue's title, body, labels, and milestone.
+# Usage: view-issue <issue-number>
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+NUM="${1:?Usage: view-issue <issue-number>}"
+
+gh issue view "$NUM" --repo "$REPO"

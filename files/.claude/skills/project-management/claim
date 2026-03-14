@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Claims an issue by adding the "ralph:wip" label.
+# Usage: claim <issue-number>
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+NUM="${1:?Usage: claim <issue-number>}"
+
+gh issue edit "$NUM" --repo "$REPO" --add-label "ralph:wip"
+echo "Claimed #$NUM"

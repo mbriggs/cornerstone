@@ -107,3 +107,5 @@ Use `include Logging` mixin (from `lib/logging.rb`), not `Rails.logger`.
 `config.x.logging` controls which loggers are active (taglist string, default
 `_all` via `LOGGING` env var). Narrow with e.g.
 `LOGGING="AnthropicClient->debug"`.
+
+## Learnings

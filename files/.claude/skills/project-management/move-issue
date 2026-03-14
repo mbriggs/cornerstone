@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Moves an issue to a different milestone.
+# Usage: move-issue <issue-number> --to "M2: Core Features"
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+
+ISSUE=""
+MILESTONE=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --to) MILESTONE="$2"; shift 2 ;;
+    *)
+      if [[ -z "$ISSUE" ]]; then
+        ISSUE="$1"; shift
+      else
+        echo "Unknown argument: $1" >&2; exit 1
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "$ISSUE" || -z "$MILESTONE" ]]; then
+  echo "Usage: move-issue <issue-number> --to \"milestone title\"" >&2
+  exit 1
+fi
+
+MS_NUM=$(gh api "repos/$REPO/milestones?state=all" \
+  --jq ".[] | select(.title == \"$MILESTONE\") | .number")
+
+if [[ -z "$MS_NUM" ]]; then
+  echo "Milestone not found: $MILESTONE" >&2; exit 1
+fi
+
+OLD=$(gh api "repos/$REPO/issues/$ISSUE" --jq '.milestone.title // "none"')
+
+gh api "repos/$REPO/issues/$ISSUE" -X PATCH -F "milestone=$MS_NUM" --silent
+
+echo "#$ISSUE moved from $OLD -> $MILESTONE"

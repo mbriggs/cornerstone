@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Shows the currently claimed issue (ralph:wip label), if any.
+# Usage: claimed
+#
+# Exits 0 and prints the issue if one is claimed.
+# Exits 1 with no output if nothing is claimed.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+
+RESULT=$(gh issue list --repo "$REPO" --state open --label "ralph:wip" \
+  --json number,title --jq 'sort_by(.number)[] | "#\(.number) \(.title)"')
+
+if [[ -z "$RESULT" ]]; then
+  exit 1
+fi
+
+echo "$RESULT"

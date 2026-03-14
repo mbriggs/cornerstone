@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Lists all milestones with open/closed issue counts.
+# Usage: list-milestones [--all]
+#
+# By default shows only open milestones. Pass --all to include closed.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+
+STATE="open"
+[[ "${1:-}" == "--all" ]] && STATE="all"
+
+gh api "repos/$REPO/milestones?state=$STATE&direction=asc" --jq \
+  '.[] | "\(.title)  (\(.closed_issues)/\(.open_issues + .closed_issues) done)  [\(.state)]"'

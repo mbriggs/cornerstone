@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Closes an issue with a commit reference comment and removes ralph:wip label.
+# Usage: close-issue <issue-number>
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+NUM="${1:?Usage: close-issue <issue-number>}"
+SHA=$(git rev-parse --short HEAD)
+
+gh issue close "$NUM" --repo "$REPO" --comment "Implemented in $SHA."
+gh issue edit "$NUM" --repo "$REPO" --remove-label "ralph:wip" --add-label "ralph:done" 2>/dev/null || true
+echo "Closed #$NUM ($SHA)"

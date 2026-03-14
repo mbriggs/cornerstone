@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Lists open issues that are not blocked and not claimed.
+# Usage: unblocked "milestone name"
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+MILESTONE="${1:?Usage: unblocked \"milestone name\"}"
+
+gh issue list --repo "$REPO" --state open --milestone "$MILESTONE" \
+  --search "-is:blocked -label:ralph:wip -label:human:claimed" --json number,title \
+  --jq 'sort_by(.number)[] | "#\(.number) \(.title)"'
