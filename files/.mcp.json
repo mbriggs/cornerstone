@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://localhost:5432/APP_NAME_development"
+      ],
+      "env": {}
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}

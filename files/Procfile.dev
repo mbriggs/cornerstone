@@ -1,0 +1,3 @@
+web: bin/rails server
+worker: bin/work
+css: bin/tailwind

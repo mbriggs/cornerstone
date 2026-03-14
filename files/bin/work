@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+
+# SolidQueue worker startup script.
+# macOS fork safety for Objective-C runtime
+if RUBY_PLATFORM.include?("darwin")
+  ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] ||= "YES"
+end
+
+Dir.chdir(File.expand_path("..", __dir__)) unless Dir.pwd == File.expand_path("..", __dir__)
+
+require_relative "../config/environment"
+require "solid_queue/cli"
+
+SolidQueue.logger = ActiveSupport::Logger.new($stdout)
+
+puts "SolidQueue #{SolidQueue::VERSION} starting in #{Rails.env}"
+SolidQueue::Cli.start(ARGV)

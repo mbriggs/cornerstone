@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Tear down a worktree's local resources.
+#
+# Drops databases and frees the port allocation.
+# This script is the main entry point — .superset/teardown.sh delegates here.
+
+set -e
+
+# This script lives in the root checkout's bin/. The worktree is $PWD.
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+WORKTREE_DIR="$(git rev-parse --show-toplevel)"
+cd "$WORKTREE_DIR"
+
+mise trust 2>/dev/null || true
+eval "$(mise env 2>/dev/null)" || true
+
+# --- Drop databases ---
+
+echo "Dropping databases..."
+bin/rails db:drop 2>/dev/null || echo "  (databases may already be dropped)"
+
+# --- Deallocate port ---
+
+"$ROOT_DIR/bin/port-deallocate"
+
+echo "Worktree torn down."

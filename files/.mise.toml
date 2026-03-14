@@ -1,0 +1,19 @@
+[env]
+_.path = ["./bin"]
+_.file = [".env", "worktree.env"]
+
+# jemalloc reduces heap fragmentation — fewer major GC pauses
+LD_PRELOAD.value = "{% set jemalloc = \"/usr/lib/x86_64-linux-gnu/libjemalloc.so.2\" %}{% if jemalloc is file %}{{jemalloc}}{% endif %}"
+
+# Larger initial heap and malloc limits so GC fires less often in dev.
+# Trades ~200-400MB extra RAM for smoother request times.
+RUBY_GC_HEAP_INIT_SLOTS = "600000"
+RUBY_GC_MALLOC_LIMIT = "128000000"
+RUBY_GC_MALLOC_LIMIT_MAX = "256000000"
+RUBY_GC_OLDMALLOC_LIMIT = "128000000"
+RUBY_GC_OLDMALLOC_LIMIT_MAX = "256000000"
+
+PORT = "{{ env.PORT | default(value='3000') }}"
+
+[tools]
+ruby = "4.0.1"

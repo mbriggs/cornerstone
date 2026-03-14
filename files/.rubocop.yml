@@ -1,0 +1,23 @@
+# Omakase Ruby styling for Rails
+inherit_gem: { rubocop-rails-omakase: rubocop.yml }
+
+# Overwrite or add rules to create your own house style
+
+Layout/IndentationConsistency:
+  EnforcedStyle: indented_internal_methods
+
+# No frozen_string_literal comments (Ruby 4.0 defaults to frozen)
+Style/FrozenStringLiteralComment:
+  EnforcedStyle: never
+
+# Prefer `if !condition` over `unless condition`
+Style/NegatedIf:
+  Enabled: false
+
+# Don't suggest postfix conditionals (we prefer multi-line)
+Style/IfUnlessModifier:
+  Enabled: false
+
+# Don't require .freeze on mutable constants
+Style/MutableConstant:
+  Enabled: false

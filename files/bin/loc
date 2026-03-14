@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cloc . \
+  --exclude-dir=vendor,node_modules,.git,tmp,log,coverage,storage,devices,instructions \
+  --fullpath \
+  --not-match-d='(public/assets|public/packs)' \
+  --exclude-ext=svg \
+  --not-match-f='fixtures' \
+  "$@"

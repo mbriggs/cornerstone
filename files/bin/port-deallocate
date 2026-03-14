@@ -1,0 +1,50 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Free the port allocation for the current directory.
+#
+# Removes the $PWD entry from ~/.superset/port-allocations.json.
+# Idempotent — no error if not allocated.
+
+require "json"
+require "fileutils"
+
+ALLOC_DIR = File.join(Dir.home, ".superset")
+ALLOC_FILE = File.join(ALLOC_DIR, "port-allocations.json")
+LOCK_DIR = File.join(ALLOC_DIR, "port-alloc.lock")
+
+exit 0 unless File.exist?(ALLOC_FILE)
+
+def acquire_lock
+  50.times do |attempt|
+    return if Dir.mkdir(LOCK_DIR) rescue nil
+
+    if attempt == 49 && File.directory?(LOCK_DIR)
+      lock_age = Time.now.to_i - File.mtime(LOCK_DIR).to_i
+      if lock_age > 30
+        warn "Removing stale lock (#{lock_age}s old)"
+        Dir.rmdir(LOCK_DIR) rescue nil
+        redo
+      end
+      abort "Error: could not acquire lock after 50 attempts"
+    end
+    sleep 0.1
+  end
+end
+
+def release_lock
+  Dir.rmdir(LOCK_DIR) rescue nil
+end
+
+at_exit { release_lock }
+
+workdir = Dir.pwd
+
+acquire_lock
+
+allocs = JSON.parse(File.read(ALLOC_FILE))
+allocs.delete(workdir)
+File.write(ALLOC_FILE, JSON.pretty_generate(allocs) + "\n")
+
+release_lock
+puts "Port deallocated for #{workdir}"

@@ -1,0 +1,94 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Allocate a port from the worktree port pool.
+#
+# Ports start at 3020 and increment by 20 (leaving room for future services).
+# The allocation is keyed by $PWD and stored in ~/.superset/port-allocations.json.
+# If the current directory already has an allocation, prints the existing port.
+#
+# Usage: bin/port-allocate [branch-name]
+#   branch-name  — used to derive a subdomain (optional, defaults to git branch)
+#
+# Prints the allocated port to stdout.
+
+require "json"
+require "fileutils"
+
+ALLOC_DIR = File.join(Dir.home, ".superset")
+ALLOC_FILE = File.join(ALLOC_DIR, "port-allocations.json")
+LOCK_DIR = File.join(ALLOC_DIR, "port-alloc.lock")
+POOL_START = 3020
+POOL_STEP = 20
+
+FileUtils.mkdir_p(ALLOC_DIR)
+
+def acquire_lock
+  50.times do |attempt|
+    return if Dir.mkdir(LOCK_DIR) rescue nil
+
+    if attempt == 49 && File.directory?(LOCK_DIR)
+      lock_age = Time.now.to_i - File.mtime(LOCK_DIR).to_i
+      if lock_age > 30
+        warn "Removing stale lock (#{lock_age}s old)"
+        Dir.rmdir(LOCK_DIR) rescue nil
+        redo
+      end
+      abort "Error: could not acquire lock after 50 attempts"
+    end
+    sleep 0.1
+  end
+end
+
+def release_lock
+  Dir.rmdir(LOCK_DIR) rescue nil
+end
+
+at_exit { release_lock }
+
+def derive_subdomain(branch)
+  branch.split("/").last
+    .downcase
+    .gsub(/[^a-z0-9-]/, "-")
+    .gsub(/-+/, "-")
+    .sub(/^-/, "")
+    .sub(/-$/, "")
+end
+
+def read_allocations
+  return {} unless File.exist?(ALLOC_FILE)
+  JSON.parse(File.read(ALLOC_FILE))
+end
+
+def write_allocations(allocs)
+  File.write(ALLOC_FILE, JSON.pretty_generate(allocs) + "\n")
+end
+
+# --- Main ---
+
+branch = ARGV[0] || `git rev-parse --abbrev-ref HEAD 2>/dev/null`.strip
+branch = "worktree" if branch.empty?
+subdomain = derive_subdomain(branch)
+workdir = Dir.pwd
+
+acquire_lock
+
+allocs = read_allocations
+
+# Return existing allocation
+if (entry = allocs[workdir])
+  release_lock
+  puts entry["port"]
+  exit 0
+end
+
+# Find next available port
+used = allocs.values.map { |v| v["port"] }
+port = POOL_START
+port += POOL_STEP while used.include?(port)
+
+allocs[workdir] = { "port" => port, "subdomain" => subdomain }
+write_allocations(allocs)
+
+release_lock
+puts port

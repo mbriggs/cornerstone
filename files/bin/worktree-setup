@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+# Provision a worktree for local development.
+#
+# Allocates a port, links shared files from the root checkout, syncs the
+# database, and runs bin/setup.
+#
+# This script is the main entry point — .superset/setup.sh delegates here.
+# Can also be run directly: bin/worktree-setup [branch-name]
+
+set -e
+
+# This script lives in the root checkout's bin/. The worktree is $PWD.
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+WORKTREE_DIR="$(git rev-parse --show-toplevel)"
+cd "$WORKTREE_DIR"
+
+if [ "$WORKTREE_DIR" = "$ROOT_DIR" ]; then
+  echo "Error: this script is for worktrees, not the root checkout."
+  exit 1
+fi
+
+echo "Root checkout: $ROOT_DIR"
+echo "Worktree: $WORKTREE_DIR"
+
+# --- Trust mise config ---
+# The worktree's .mise.toml may be on an older branch with different syntax.
+# Tools (ruby) are already installed from the root checkout, so mise env
+# failure is non-fatal.
+
+mise trust 2>/dev/null || true
+eval "$(mise env 2>/dev/null)" || true
+
+# --- Allocate port ---
+
+branch="${1:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "worktree")}"
+port=$("$ROOT_DIR/bin/port-allocate" "$branch")
+echo "Allocated port: $port"
+
+# Persist PORT so every shell in this worktree picks it up via mise (worktree.env)
+echo "PORT=$port" > worktree.env
+export PORT="$port"
+
+# --- Link shared files ---
+
+link_from_root() {
+  local src="$ROOT_DIR/$1"
+  local dest="${2:-$1}"
+  local copy=false mkdir_flag=false
+
+  shift; shift 2>/dev/null || true
+  for arg in "$@"; do
+    case "$arg" in
+      --copy) copy=true ;;
+      --mkdir) mkdir_flag=true ;;
+    esac
+  done
+
+  if [ -e "$src" ] || [ "$mkdir_flag" = true ]; then
+    if [ "$mkdir_flag" = true ] && [ ! -d "$src" ]; then
+      mkdir -p "$src"
+    fi
+
+    local name
+    name=$(basename "$dest")
+    if [ "$copy" = true ]; then
+      echo "Copying $name from root..."
+      cp "$src" "$dest"
+    else
+      echo "Symlinking $name from root..."
+      ln -sf "$src" "$dest"
+    fi
+  fi
+}
+
+link_from_root config/master.key config/master.key --copy
+link_from_root storage storage --mkdir
+link_from_root .bundle
+
+# --- Derive app name from Rails ---
+
+APP_NAME=$(ruby -e "require 'pathname'; puts Pathname.new('config/application.rb').read[/module (\w+)/, 1].underscore")
+
+# --- Sync databases from root (convention-based names) ---
+
+echo "Syncing databases from root..."
+
+# database.yml convention: root uses unsuffixed names, worktrees append port.
+# If root databases don't exist, skip — bin/setup will create empty ones.
+for suffix in "" "_cable" "_queue"; do
+  source_db="${APP_NAME}_development${suffix}"
+  target_db="${APP_NAME}_development${suffix}${port}"
+
+  if psql -lqt | cut -d \| -f 1 | grep -qw "$source_db"; then
+    echo "  $source_db → $target_db"
+    dropdb --if-exists "$target_db"
+    createdb "$target_db"
+    pg_dump "$source_db" | psql -q "$target_db"
+  else
+    echo "  $source_db not found, skipping (bin/setup will create $target_db)"
+  fi
+done
+
+# --- Run setup ---
+
+echo "Running bin/setup..."
+./bin/setup
+
+# --- Optional: Register MCP server ---
+# Uncomment to auto-register the MCP server during worktree setup:
+# echo "Registering MCP server..."
+# ./bin/mcp-setup
+
+echo ""
+echo "Worktree ready!"
+echo "  Port: $port"
+echo "  URL:  http://localhost:$port"

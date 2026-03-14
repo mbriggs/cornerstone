@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Sets up the app's MCP server for Claude Code.
+#
+# Generates an API token and registers the MCP server via `claude mcp add`.
+#
+# Usage:
+#   bin/mcp-setup
+#   bin/mcp-setup alice@example.com
+#
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# -- Derive app name --
+APP_NAME=$(ruby -e "require 'pathname'; puts Pathname.new('config/application.rb').read[/module (\w+)/, 1].underscore")
+
+# -- Resolve email --
+email="${1:-}"
+
+if [ -z "$email" ]; then
+  read -rp "Enter your email: " email
+  if [ -z "$email" ]; then
+    echo "Error: no email provided" >&2
+    exit 1
+  fi
+fi
+
+# -- Resolve port --
+port="${PORT:-3000}"
+label="localhost:${port}"
+
+# -- Generate API token (revokes previous token for this port) --
+token=$(EMAIL="$email" LABEL="$label" bin/rails runner '
+  user = User.find_by(email_address: ENV["EMAIL"])
+  abort "Error: no user found for #{ENV["EMAIL"]}" unless user
+  user.revoke_api_tokens(label: ENV["LABEL"]) if user.respond_to?(:revoke_api_tokens)
+  print user.generate_api_token(label: ENV["LABEL"])
+' 2>/dev/null)
+
+if [ -z "$token" ]; then
+  echo "Error: could not generate API token for $email" >&2
+  exit 1
+fi
+
+# -- Persist token --
+# worktree.env is loaded by mise and gitignored.
+if [ -f worktree.env ]; then
+  grep -v "^${APP_NAME^^}_API_TOKEN=" worktree.env > worktree.env.tmp; mv worktree.env.tmp worktree.env
+else
+  touch worktree.env
+fi
+echo "${APP_NAME^^}_API_TOKEN=$token" >> worktree.env
+
+# -- Register MCP server --
+claude mcp remove "$APP_NAME" -s project 2>/dev/null || true
+claude mcp remove "$APP_NAME" -s user 2>/dev/null || true
+claude mcp add \
+  --transport http \
+  --header "Authorization: Bearer $token" \
+  -- "$APP_NAME" \
+  "http://localhost:${port}/mcp"
+
+echo ""
+echo "$APP_NAME MCP server registered:"
+echo "  URL:   http://localhost:${port}/mcp"
+echo "  User:  $email"
+echo "  Token: ${token:0:8}••••••••"
+echo ""
+echo "Restart Claude Code to connect."

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+rails tailwindcss:watch 2>&1 | grep -v "watchman: not found"
