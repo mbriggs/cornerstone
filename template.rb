@@ -36,6 +36,10 @@ after_bundle do
   generate "authentication"
   remove_file "test/fixtures/users.yml"
 
+  # The auth generator doesn't add a root route, but the generated
+  # SessionsController and Authentication concern both redirect to it.
+  route 'root "sessions#new"'
+
   # --- Copy all files from files/ into the app ---
 
   # lib/
@@ -114,9 +118,6 @@ after_bundle do
 
   # dotfiles & root files
   %w[
-    .superset/config.json
-    .superset/setup.sh
-    .superset/teardown.sh
     .claude/settings.local.json
     .mcp.json
     .mise.toml
@@ -198,7 +199,6 @@ after_bundle do
     bin/ci bin/dev bin/setup bin/work bin/tailwind bin/loc
     bin/worktree-setup bin/worktree-teardown
     bin/port-allocate bin/port-deallocate bin/mcp-setup
-    .superset/setup.sh .superset/teardown.sh
   ].each { |f| chmod f, 0o755 }
 
   # --- Replace APP_NAME placeholders ---

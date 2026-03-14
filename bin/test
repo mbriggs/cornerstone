@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Test the Cornerstone template by generating a real app and verifying it.
+#
+# Usage:
+#   bin/test          # file checks + db setup + test suite
+#   bin/test --quick  # file checks only (no database required)
+
+TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_NAME="cornerstone_test_app"
+APP_DIR="$TEMPLATE_DIR/$APP_NAME"
+QUICK=false
+FAILURES=0
+
+for arg in "$@"; do
+  [[ "$arg" == "--quick" ]] && QUICK=true
+done
+
+cleanup() {
+  echo ""
+  if [[ $FAILURES -eq 0 ]]; then
+    echo "Cleaning up $APP_DIR..."
+    if [[ "$QUICK" == false ]] && command -v dropdb &>/dev/null; then
+      dropdb --if-exists "${APP_NAME}_development" 2>/dev/null || true
+      dropdb --if-exists "${APP_NAME}_test" 2>/dev/null || true
+    fi
+    rm -rf "$APP_DIR"
+  else
+    echo "Keeping generated app for inspection: $APP_DIR"
+  fi
+}
+trap cleanup EXIT
+
+# Clean up any previous test run
+if [[ -d "$APP_DIR" ]]; then
+  echo "Removing previous test app..."
+  if command -v dropdb &>/dev/null; then
+    dropdb --if-exists "${APP_NAME}_development" 2>/dev/null || true
+    dropdb --if-exists "${APP_NAME}_test" 2>/dev/null || true
+  fi
+  rm -rf "$APP_DIR"
+fi
+
+# --- Helpers ---
+
+pass() { echo "  PASS: $1"; }
+fail() { echo "  FAIL: $1"; FAILURES=$((FAILURES + 1)); }
+
+assert_file_exists() {
+  [[ -f "$APP_DIR/$1" ]] && pass "$1 exists" || fail "$1 missing"
+}
+
+assert_file_absent() {
+  [[ ! -f "$APP_DIR/$1" ]] && pass "$1 absent" || fail "$1 should not exist"
+}
+
+assert_file_contains() {
+  grep -q "$2" "$APP_DIR/$1" 2>/dev/null && pass "$1 contains '$2'" || fail "$1 missing '$2'"
+}
+
+assert_file_not_contains() {
+  ! grep -q "$2" "$APP_DIR/$1" 2>/dev/null && pass "$1 does not contain '$2'" || fail "$1 should not contain '$2'"
+}
+
+# --- Generate ---
+
+echo "=== Generating app in $APP_DIR ==="
+cd "$TEMPLATE_DIR"
+rails new "$APP_NAME" --database=postgresql --css=tailwind -m "$TEMPLATE_DIR/template.rb"
+echo ""
+
+# --- File existence checks ---
+
+echo "=== Checking generated files ==="
+
+# Auth generator output (kept as-is)
+assert_file_exists "app/controllers/sessions_controller.rb"
+assert_file_exists "app/controllers/passwords_controller.rb"
+assert_file_exists "app/mailers/passwords_mailer.rb"
+assert_file_exists "app/views/sessions/new.html.erb"
+assert_file_exists "app/views/passwords/new.html.erb"
+assert_file_exists "app/views/passwords/edit.html.erb"
+
+# Our overrides
+assert_file_exists "app/models/user.rb"
+assert_file_exists "app/models/session.rb"
+assert_file_exists "app/models/current.rb"
+assert_file_exists "app/models/api_token.rb"
+assert_file_exists "app/models/input_sanitizer.rb"
+assert_file_exists "app/controllers/concerns/authentication.rb"
+assert_file_exists "app/controllers/concerns/api_authentication.rb"
+
+# Lib
+assert_file_exists "lib/logging.rb"
+assert_file_exists "lib/credentials.rb"
+assert_file_exists "lib/anthropic_client.rb"
+assert_file_exists "lib/test_data.rb"
+assert_file_exists "lib/test_data/fixture.rb"
+assert_file_exists "lib/test_data/fixtures/users.rb"
+
+# Config
+assert_file_exists "config/initializers/rack_attack.rb"
+assert_file_exists "config/initializers/content_security_policy.rb"
+assert_file_exists "CLAUDE.md"
+assert_file_exists ".rubocop.yml"
+
+# Tests
+assert_file_exists "test/models/user_test.rb"
+assert_file_exists "test/models/session_test.rb"
+assert_file_exists "test/models/api_token_test.rb"
+assert_file_exists "test/test_helpers/session_test_helper.rb"
+assert_file_exists "test/test_helpers/api_test_helper.rb"
+
+# Removed Google auth artifacts
+assert_file_absent "lib/generators/google_auth/google_auth_generator.rb"
+assert_file_absent "config/initializers/omniauth.rb"
+assert_file_absent "test/fixtures/users.yml"
+
+echo ""
+echo "=== Checking file contents ==="
+
+# User model: has_secure_password, no google_uid
+assert_file_contains "app/models/user.rb" "has_secure_password"
+assert_file_not_contains "app/models/user.rb" "google_uid"
+assert_file_contains "app/models/user.rb" "deactivated?"
+assert_file_contains "app/models/user.rb" "generate_api_token"
+
+# Session model: expiry
+assert_file_contains "app/models/session.rb" "SESSION_DURATION"
+assert_file_contains "app/models/session.rb" "expires_at"
+
+# Current model: dual auth
+assert_file_contains "app/models/current.rb" "session&.user"
+
+# Authentication concern: deactivation check
+assert_file_contains "app/controllers/concerns/authentication.rb" "deny_deactivated_user"
+
+# ApplicationController includes Authentication
+assert_file_contains "app/controllers/application_controller.rb" "include Authentication"
+
+# Routes
+assert_file_contains "config/routes.rb" "session"
+assert_file_contains "config/routes.rb" "passwords"
+
+# CLAUDE.md has app name, not placeholder
+assert_file_not_contains "CLAUDE.md" "APP_NAME"
+assert_file_contains "CLAUDE.md" "$APP_NAME"
+
+# Gemfile: no omniauth, has bcrypt
+assert_file_not_contains "Gemfile" "omniauth"
+assert_file_contains "Gemfile" "bcrypt"
+assert_file_contains "Gemfile" "rack-attack"
+assert_file_contains "Gemfile" "bullet"
+
+# Migrations exist in correct order (create before alter)
+echo ""
+echo "=== Checking migration order ==="
+MIGRATIONS=$(ls "$APP_DIR/db/migrate/"*.rb | sort)
+CREATE_USERS=$(echo "$MIGRATIONS" | grep "create_users" | head -1)
+ADD_FIELDS=$(echo "$MIGRATIONS" | grep "add_fields_to_users" | head -1)
+CREATE_SESSIONS=$(echo "$MIGRATIONS" | grep "create_sessions" | head -1)
+ADD_EXPIRES=$(echo "$MIGRATIONS" | grep "add_expires_at" | head -1)
+CREATE_TOKENS=$(echo "$MIGRATIONS" | grep "create_api_tokens" | head -1)
+
+if [[ "$CREATE_USERS" < "$ADD_FIELDS" ]]; then
+  pass "create_users before add_fields_to_users"
+else
+  fail "create_users must come before add_fields_to_users"
+fi
+
+if [[ "$CREATE_SESSIONS" < "$ADD_EXPIRES" ]]; then
+  pass "create_sessions before add_expires_at_to_sessions"
+else
+  fail "create_sessions must come before add_expires_at_to_sessions"
+fi
+
+if [[ -n "$CREATE_TOKENS" ]]; then
+  pass "create_api_tokens migration exists"
+else
+  fail "create_api_tokens migration missing"
+fi
+
+# --- Full integration (unless --quick) ---
+
+if [[ "$QUICK" == true ]]; then
+  echo ""
+  echo "=== Skipping database tests (--quick) ==="
+else
+  cd "$APP_DIR"
+
+  echo ""
+  echo "=== Running bin/setup ==="
+  bin/setup
+
+  echo ""
+  echo "=== Running tests ==="
+  bin/rails test
+fi
+
+# --- Results ---
+
+echo ""
+if [[ $FAILURES -eq 0 ]]; then
+  echo "=== ALL CHECKS PASSED ==="
+else
+  echo "=== $FAILURES CHECK(S) FAILED ==="
+  exit 1
+fi

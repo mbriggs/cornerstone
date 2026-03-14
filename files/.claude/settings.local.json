@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": [
+    "postgres",
+    "chrome-devtools",
+    "context7"
+  ]
+}

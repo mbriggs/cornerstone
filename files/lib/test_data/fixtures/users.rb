@@ -6,12 +6,12 @@ class TestData::Fixtures::Users < TestData::Fixture
   def load
     create User, :alice,
       email_address: "alice@example.com",
-      password: "password123",
+      password: "password",
       name: "Alice"
 
     create User, :bob,
       email_address: "bob@example.com",
-      password: "password123",
+      password: "password",
       name: "Bob"
   end
 end

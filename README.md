@@ -55,6 +55,15 @@ bin/dev
 
 Everything the template copies lives in `files/`. Edit those files to change what gets generated. The template itself (`template.rb`) controls gem additions, generator invocations, and config patching.
 
+## Testing the template
+
+```bash
+bin/test          # generate an app, run file checks, db setup, and test suite
+bin/test --quick  # file checks only (no database required)
+```
+
+This generates a throwaway app, verifies the expected files and contents, checks migration ordering, and optionally runs `bin/setup` + `bin/rails test` against a real PostgreSQL database. On failure the generated app is kept for inspection; on success it's cleaned up.
+
 ## After generating
 
 ```bash
