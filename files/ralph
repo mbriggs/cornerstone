@@ -36,6 +36,13 @@ while true; do
   LOG_FILE="$LOG_DIR/loop-$(printf '%04d' $LOOP).log"
   SHA_BEFORE=$(git rev-parse --short HEAD 2>/dev/null || echo "none")
 
+  # Unclaim stale ralph:wip issues from previous interrupted runs
+  STALE_WIP=$(gh issue list --repo "$REPO" --state open --label "ralph:wip" --json number --jq '.[].number' 2>/dev/null || echo "")
+  for NUM in $STALE_WIP; do
+    "$PM/unclaim" "$NUM" 2>/dev/null || true
+    echo "  Unclaimed stale #$NUM"
+  done
+
   # Check for available work
   MILESTONE=$("$PM/milestone" 2>/dev/null || echo "")
   AVAILABLE=$("$PM/unblocked" 2>/dev/null | head -5)
@@ -52,13 +59,6 @@ while true; do
   LABEL="${MILESTONE:-backlog}"
   COUNT=$(echo "$AVAILABLE" | wc -l | tr -d ' ')
   echo "--- Loop $LOOP | $(date '+%H:%M:%S') | $LABEL | available: $COUNT | stalls: $STALLS/3 ---"
-
-  # Unclaim stale ralph:wip issues from previous interrupted runs
-  STALE_WIP=$(gh issue list --repo "$REPO" --state open --label "ralph:wip" --json number --jq '.[].number' 2>/dev/null || echo "")
-  for NUM in $STALE_WIP; do
-    "$PM/unclaim" "$NUM" 2>/dev/null || true
-    echo "  Unclaimed stale #$NUM"
-  done
 
   # Run claude in a PTY so output streams in real time
   script -q "$LOG_FILE" bash -c "claude --print -p - < PROMPT.md" || true
