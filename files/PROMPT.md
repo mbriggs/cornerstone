@@ -12,7 +12,9 @@
 
 ## Implement
 
-Implement what the issue specifies. Use parallel subagents for search and writing. Use only 1 subagent for running tests.
+If the issue is already fixed (the code already addresses the problem), comment on the issue explaining which commit fixed it and close it with `.claude/skills/project-management/close-issue <number>`. Do NOT stall — move on.
+
+Otherwise, implement what the issue specifies. Use parallel subagents for search and writing. Use only 1 subagent for running tests.
 
 ## Validate
 
@@ -30,7 +32,7 @@ git commit -m "Implement #<number>: <short description>"
 IMPORTANT: Do NOT use `git add -A`. Only add paths listed above. The `2>/dev/null; true` handles files that don't exist yet.
 Never stage: PROMPT.md, ralph, skinner, REVIEW.md, .claude/skills/project-management/.
 
-Do NOT run `git push`, `git pull`, or `close-issue` — Ralph handles pull, push, and issue closing after your session.
+Do NOT run `git push` or `git pull` — Ralph handles pull and push after your session. Only run `close-issue` if the issue is already fixed (no new code needed).
 
 ## Rules
 
