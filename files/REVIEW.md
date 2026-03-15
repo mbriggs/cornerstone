@@ -61,34 +61,37 @@ Are tests actually testing the implementation, or just testing that Rails works?
 
 Only file issues for things that meet this bar: **"Will this cause a problem?"** — not "Would I have done it differently?"
 
-First, get the milestone from the reviewed issue so the fix lands in the same milestone:
+For each real problem found, file an issue in the same milestone as the reviewed issue, then label it:
 
 ```bash
-MILESTONE=$(gh issue view __NUMBER__ --repo "$(git remote get-url origin | sed 's|.*github.com[:/]||; s|\.git$||')" --json milestone --jq '.milestone.title')
+MILESTONE=$(gh issue view __NUMBER__ --repo "$(git remote get-url origin | sed 's|.*github.com[:/]||; s|\.git$||')" --json milestone --jq '.milestone.title // empty')
+MS_FLAG=""; [[ -n "$MILESTONE" ]] && MS_FLAG="--milestone $MILESTONE"
+NEW_ISSUE=$(.claude/skills/project-management/create-issue "Review #__NUMBER__: <problem summary>" --body "<description>" $MS_FLAG | sed 's/.*#\([0-9]*\).*/\1/')
+gh issue edit "$NEW_ISSUE" --repo "$(git remote get-url origin | sed 's|.*github.com[:/]||; s|\.git$||')" --add-label "skinner:review"
 ```
 
-For each real problem found, file an issue in that milestone:
+## Step 6: Update CLAUDE.md learnings (high bar)
 
-```bash
-.claude/skills/project-management/create-issue "Review #__NUMBER__: <problem summary>" --body "<description of the problem, what's wrong, and what the fix should be>" --milestone "$MILESTONE"
-```
+Most reviews should NOT add a learning. Only add one if the mistake is **likely to recur across multiple future issues** and **cannot be prevented by reading the code that now exists**.
 
-Then label it:
+A learning is worth adding when:
+- It's about a tool/library/runtime gotcha that has no signal in the codebase (e.g., a PG version difference, a gem that moved out of stdlib)
+- The same class of mistake has already happened more than once
 
-```bash
-gh issue edit <new-issue-number> --repo "$(git remote get-url origin | sed 's|.*github.com[:/]||; s|\.git$||')" --add-label "skinner:review"
-```
+A learning is NOT worth adding when:
+- The fix is now in the code — future Claude can read the code and see the pattern
+- It's a one-off bug specific to a single ticket (wrong argument order, missing require, typo)
+- It's about how a specific API works — that's what docs are for
+- It duplicates something already in CLAUDE.md conventions
 
-## Step 6: Update CLAUDE.md learnings (lower bar)
-
-If the review reveals something systemic — a pattern the build loop is likely to get wrong again, a gotcha about the codebase, a convention that isn't documented — add a one-line entry to the "Learnings" section in CLAUDE.md.
-
-Good learnings look like:
-- "Ruby 3.3+ moved `ostruct` out of default gems — add `require 'ostruct'` explicitly"
+Good learnings:
+- "PG 17 split `pg_stat_bgwriter` into two views with renamed columns — version-gate collectors"
 - "`insert_all` does not auto-set `created_at`/`updated_at` timestamps"
-- "Turbo Frame requests need `layout false` or they render the full layout inside the frame"
 
-Only add learnings that will prevent future mistakes. Don't add learnings about one-off issues specific to a single ticket.
+Bad learnings (don't add these):
+- "Use `::ActionMailer::Base` inside `module Stratum`" — that's just how Ruby namespacing works
+- "`button_link` takes text as first arg" — the fix is in the code now
+- "Add `require 'net/http'`" — the require is in the code now
 
 ## Step 7: Mark as reviewed
 
@@ -105,4 +108,4 @@ gh issue edit __NUMBER__ --repo "$(git remote get-url origin | sed 's|.*github.c
 3. **Be specific.** Issues should say exactly what's wrong and where, not vague concerns.
 4. **No style issues.** Working code that follows different conventions is not a bug.
 5. **No scope creep.** The implementation should match the spec. Don't file issues for features the spec didn't ask for.
-6. **Learnings are cheap.** When in doubt about whether something is worth a CLAUDE.md entry, add it. One-liners that prevent future mistakes are high leverage.
+6. **Learnings are expensive.** Every entry costs context window space on every future run. Only add learnings for recurring, undetectable-from-code gotchas. When in doubt, don't add it — the fix is in the code.

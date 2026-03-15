@@ -62,11 +62,12 @@ All scripts live in this skill's directory: `.claude/skills/project-management/`
 
 | Script | Purpose | Usage |
 |---|---|---|
-| `create-issue` | Create issue with optional milestone and blocker | `create-issue "title" --body "md" --milestone "M1: ..." --blocked-by 42` |
+| `create-issue` | Create issue with optional milestone and blockers | `create-issue "title" --body "md" --milestone "M1: ..." --blocked-by 42 --blocked-by 43` |
+| `edit-issue` | Update an issue's title or body | `edit-issue 42 --title "new" --body "md"` |
 | `block-issue` | Add blocking relationship to existing issues | `block-issue 120 --by 115` |
 | `unblock-issue` | Remove a blocking relationship | `unblock-issue 42 --from 38` |
 | `view-issue` | Display issue details | `view-issue 42` |
-| `close-issue` | Close with commit reference | `close-issue 42` |
+| `close-issue` | Close with commit reference, close milestone if empty | `close-issue 42` |
 | `move-issue` | Move issue to a different milestone | `move-issue 42 --to "M2: ..."` |
 | `claim` | Claim an issue (add ralph:wip label) | `claim 42` |
 | `unclaim` | Release a claimed issue | `unclaim 42` |
@@ -74,10 +75,10 @@ All scripts live in this skill's directory: `.claude/skills/project-management/`
 | `list-issues` | List issues in a milestone | `list-issues "M1: ..." [--closed]` |
 | `list-milestones` | List milestones with progress | `list-milestones [--all]` |
 | `milestone-status` | Show milestone progress (ready/blocked/wip) | `milestone-status "M1: Foundation"` |
-| `next-milestone` | Get the current active milestone name | `next-milestone` |
+| `milestone` | Get current milestone (syncs state automatically) | `milestone` |
 | `add-milestone` | Create a new milestone | `add-milestone "M1: Foundation"` |
 | `close-milestone` | Close a milestone | `close-milestone "M1: Foundation"` |
-| `unblocked` | List unblocked unclaimed issues | `unblocked "M1: Foundation"` |
+| `unblocked` | List all available issues (milestone first, then backlog) | `unblocked` |
 
 Run scripts with the full path from the repo root, e.g.:
 ```
@@ -85,7 +86,7 @@ Run scripts with the full path from the repo root, e.g.:
 ```
 
 **When creating tickets:**
-- Always assign to the current milestone (use `next-milestone` to find it)
+- Always assign to the current milestone (use `milestone` to find it)
 - Set up `--blocked-by` relationships when tickets have dependencies
 - After creating all tickets, run `milestone-status` to show the user the updated state
 

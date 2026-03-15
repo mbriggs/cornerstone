@@ -1,12 +1,13 @@
 # Build Loop
 
-**Current milestone: __MILESTONE__**
-
 ## Study
 
 1. Study the codebase using parallel subagents. Do NOT assume something is not implemented — search first.
 2. Check if there's already a claimed issue: `.claude/skills/project-management/claimed`. If one exists, resume it — check `git status` and `git diff` to see where the previous attempt left off.
-3. If no claimed issue, run `.claude/skills/project-management/unblocked "__MILESTONE__"` to see available issues. Pick the lowest-numbered one. Claim it with `.claude/skills/project-management/claim <number>`.
+3. If no claimed issue, find available work:
+   - Run `.claude/skills/project-management/unblocked` to see available issues (milestone first, then backlog).
+   - Pick the first issue listed.
+   - Claim it with `.claude/skills/project-management/claim <number>`.
 4. Read the issue with `.claude/skills/project-management/view-issue <number>`.
 
 ## Implement
@@ -19,20 +20,17 @@ Run tests for the code you changed. If they pass, run the full suite with `bin/c
 
 Use a subagent to check if you hit any surprises about building, running, or configuring the project. If so, update the "Learnings" section in CLAUDE.md.
 
-## Commit and close
+## Commit
 
 ```bash
 git add app/ config/ db/ lib/ test/ bin/setup bin/ci CLAUDE.md Gemfile Gemfile.lock Rakefile .rubocop.yml .mise.toml Procfile.dev 2>/dev/null; true
 git commit -m "Implement #<number>: <short description>"
-git pull --rebase
-git push
-.claude/skills/project-management/close-issue <number>
 ```
 
 IMPORTANT: Do NOT use `git add -A`. Only add paths listed above. The `2>/dev/null; true` handles files that don't exist yet.
 Never stage: PROMPT.md, ralph, skinner, REVIEW.md, .claude/skills/project-management/.
 
-Do NOT skip any of these steps. All five commands MUST run successfully.
+Do NOT run `git push`, `git pull`, or `close-issue` — Ralph handles pull, push, and issue closing after your session.
 
 ## Rules
 

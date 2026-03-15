@@ -133,7 +133,7 @@ after_bundle do
     .claude/skills/project-management/list-issues
     .claude/skills/project-management/list-milestones
     .claude/skills/project-management/milestone-status
-    .claude/skills/project-management/next-milestone
+    .claude/skills/project-management/milestone
     .claude/skills/project-management/add-milestone
     .claude/skills/project-management/close-milestone
     .claude/skills/project-management/move-issue

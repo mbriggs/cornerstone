@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Creates a GitHub issue with optional milestone and blocked-by relationship.
-# Usage: create-issue "title" --body "markdown" [--milestone "M1: ..."] [--blocked-by 42]
+# Creates a GitHub issue with optional milestone and blocked-by relationships.
+# Usage: create-issue "title" --body "markdown" [--milestone "M1: ..."] [--blocked-by 42 ...]
 #
-# The --blocked-by flag adds an issue dependency via GitHub's addBlockedBy API,
-# which makes the issue show up in is:blocked search filters.
+# The --blocked-by flag (repeatable) adds issue dependencies via GitHub's
+# addBlockedBy API, which makes the issue show up in is:blocked search filters.
 
 set -euo pipefail
 
@@ -13,13 +13,13 @@ source "$SCRIPT_DIR/config"
 TITLE=""
 BODY=""
 MILESTONE=""
-BLOCKED_BY=""
+BLOCKED_BY=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --body)       BODY="$2";       shift 2 ;;
-    --milestone)  MILESTONE="$2";  shift 2 ;;
-    --blocked-by) BLOCKED_BY="$2"; shift 2 ;;
+    --body)       BODY="$2";          shift 2 ;;
+    --milestone)  MILESTONE="$2";     shift 2 ;;
+    --blocked-by) BLOCKED_BY+=("$2"); shift 2 ;;
     *)
       if [[ -z "$TITLE" ]]; then
         TITLE="$1"; shift
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$TITLE" ]]; then
-  echo "Usage: create-issue \"title\" --body \"markdown\" [--milestone \"M1: ...\"] [--blocked-by 42]" >&2
+  echo "Usage: create-issue \"title\" --body \"markdown\" [--milestone \"M1: ...\"] [--blocked-by 42 ...]" >&2
   exit 1
 fi
 
@@ -54,19 +54,21 @@ NUM=$(gh api "repos/$REPO/issues" "${API_ARGS[@]}" --jq '.number')
 
 echo "Created #$NUM: $TITLE"
 
-# If --blocked-by is set, add a dependency so this issue is blocked by the parent
-if [[ -n "$BLOCKED_BY" ]]; then
-  BLOCKER_ID=$(gh api graphql \
-    -f query="query { repository(owner:\"$REPO_OWNER\", name:\"$REPO_NAME\") { issue(number:$BLOCKED_BY) { id } } }" \
-    --jq '.data.repository.issue.id')
-
+# Add blocked-by relationships
+if [[ ${#BLOCKED_BY[@]} -gt 0 ]]; then
   ISSUE_ID=$(gh api graphql \
     -f query="query { repository(owner:\"$REPO_OWNER\", name:\"$REPO_NAME\") { issue(number:$NUM) { id } } }" \
     --jq '.data.repository.issue.id')
 
-  gh api graphql \
-    -f query="mutation { addBlockedBy(input: { issueId: \"$ISSUE_ID\", blockingIssueId: \"$BLOCKER_ID\" }) { clientMutationId } }" \
-    --silent
+  for BLOCKER in "${BLOCKED_BY[@]}"; do
+    BLOCKER_ID=$(gh api graphql \
+      -f query="query { repository(owner:\"$REPO_OWNER\", name:\"$REPO_NAME\") { issue(number:$BLOCKER) { id } } }" \
+      --jq '.data.repository.issue.id')
 
-  echo "  -> blocked by #$BLOCKED_BY"
+    gh api graphql \
+      -f query="mutation { addBlockedBy(input: { issueId: \"$ISSUE_ID\", blockingIssueId: \"$BLOCKER_ID\" }) { clientMutationId } }" \
+      --silent
+
+    echo "  -> blocked by #$BLOCKER"
+  done
 fi

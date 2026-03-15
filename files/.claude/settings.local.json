@@ -1,4 +1,28 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh api:*)",
+      "Bash(.claude/skills/project-management/*)",
+      "Bash(bin/ci:*)",
+      "Bash(bin/rails test:*)",
+      "Bash(bin/setup:*)",
+      "Bash(bin/dev:*)",
+      "Bash(bin/rubocop:*)",
+      "Bash(bin/brakeman:*)",
+      "Bash(bundle:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)"
+    ]
+  },
   "enabledMcpjsonServers": [
     "postgres",
     "chrome-devtools",

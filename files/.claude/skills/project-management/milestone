@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Prints the current milestone (first with open issues, sorted by title).
+# Syncs milestone state: reopens closed milestones with open issues,
+# closes open milestones with none.
+# Usage: milestone
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/config"
+
+# Reopen any closed milestones that still have open issues
+gh api "repos/$REPO/milestones?state=closed&per_page=100" --jq '
+  .[] | select(.open_issues > 0) | .number' | while read -r NUM; do
+  gh api "repos/$REPO/milestones/$NUM" -X PATCH -f state=open --jq '.title' >/dev/null 2>&1 || true
+done
+
+# Close any open milestones with no remaining issues
+gh api "repos/$REPO/milestones?state=open&per_page=100" --jq '
+  .[] | select(.open_issues == 0) | .number' | while read -r NUM; do
+  gh api "repos/$REPO/milestones/$NUM" -X PATCH -f state=closed --jq '.title' >/dev/null 2>&1 || true
+done
+
+NEXT=$(gh api "repos/$REPO/milestones?per_page=100" --jq '
+  sort_by(.title) | .[] | select(.open_issues > 0) | .title' | head -1)
+
+if [[ -z "$NEXT" ]]; then
+  exit 1
+fi
+
+echo "$NEXT"

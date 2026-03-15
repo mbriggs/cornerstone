@@ -31,6 +31,8 @@ echo ""
 
 REVIEW=0
 CONSECUTIVE_ISSUES=0
+IDLE=0
+MAX_IDLE_SLEEP=300  # 5 minutes
 
 while true; do
   # Stay current with remote
@@ -44,9 +46,13 @@ while true; do
     --json number --jq 'sort_by(.number) | .[0].number' 2>/dev/null || echo "")
 
   if [[ -z "$ISSUE" || "$ISSUE" == "null" ]]; then
-    echo "No unreviewed issues. Done!"
-    break
+    IDLE=$((IDLE + 1))
+    SLEEP=$(( 2 ** IDLE > MAX_IDLE_SLEEP ? MAX_IDLE_SLEEP : 2 ** IDLE ))
+    echo "--- $(date '+%H:%M:%S') | no issues to review, checking again in ${SLEEP}s ---"
+    sleep "$SLEEP"
+    continue
   fi
+  IDLE=0
 
   REVIEW=$((REVIEW + 1))
   LOG_FILE="$LOG_DIR/review-$(printf '%04d' $REVIEW).log"

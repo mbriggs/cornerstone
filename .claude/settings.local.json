@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(gh api:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Read(//private/tmp/sync-test/**)",
+      "Bash(/Users/matt/cornerstone/bin/sync .)"
     ]
   }
 }
