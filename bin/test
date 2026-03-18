@@ -147,11 +147,17 @@ assert_file_contains "config/routes.rb" "passwords"
 assert_file_not_contains "CLAUDE.md" "APP_NAME"
 assert_file_contains "CLAUDE.md" "$APP_NAME"
 
-# Gemfile: no omniauth, has bcrypt
+# Gemfile: no omniauth, has bcrypt, has bulkhead
 assert_file_not_contains "Gemfile" "omniauth"
 assert_file_contains "Gemfile" "bcrypt"
 assert_file_contains "Gemfile" "rack-attack"
 assert_file_contains "Gemfile" "bullet"
+assert_file_contains "Gemfile" 'bulkhead'
+
+# Bulkhead subtree
+assert_file_exists "vendor/bulkhead/lib/bulkhead/engine.rb"
+assert_file_exists "bin/bulkhead"
+assert_file_contains "app/assets/tailwind/application.css" "bulkhead"
 
 # Migrations exist in correct order (create before alter)
 echo ""

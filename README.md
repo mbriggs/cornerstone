@@ -25,6 +25,8 @@ bin/dev
 
 **Dev tooling** — `bin/dev` (Procfile-based dev server), `bin/setup` (idempotent setup), `bin/work` (SolidQueue worker), worktree scripts for parallel development, `CLAUDE.md` for Claude Code.
 
+**Bulkhead design system** — [Bulkhead](https://github.com/mbriggs/bulkhead) is installed as a git subtree in `vendor/bulkhead/`. Provides 18 view helpers, 26 Stimulus controllers, 37 shared partials, Tailwind design tokens, and a kitchen sink showcase. Use `bin/bulkhead pull` to pull upstream changes and `bin/bulkhead push` to contribute back.
+
 **Security defaults** — Content Security Policy, Permissions Policy, `rack-attack` rate limiting, `filter_parameter_logging`, `bundler-audit` config.
 
 ## Stack
@@ -38,7 +40,7 @@ bin/dev
 
 | Category | Gems |
 |---|---|
-| UI | heroicons, pagy, hotwire_combobox, commonmarker |
+| UI | bulkhead (subtree — includes heroicons, pagy, commonmarker) |
 | Infrastructure | rack-attack, mission_control-jobs |
 | Dev/test | bullet |
 
@@ -50,6 +52,7 @@ bin/dev
 4. Configures `application.rb` (autoload paths, logging, Turbo preload fix)
 5. Configures dev/test environments (SolidQueue, Bullet)
 6. Creates initial git commit
+7. Installs Bulkhead via git subtree, patches Gemfile and Tailwind CSS
 
 ## Customization
 

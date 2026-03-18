@@ -7,12 +7,6 @@
 # Phase 1: Gem additions (before bundle)
 # =============================================================================
 
-# UI & rendering
-gem "heroicons"
-gem "pagy"
-gem "hotwire_combobox"
-gem "commonmarker"
-
 # Infrastructure
 gem "rack-attack"
 gem "mission_control-jobs"
@@ -243,4 +237,32 @@ after_bundle do
   git :init unless File.exist?(".git")
   git add: "."
   git commit: "-m 'Initial commit via Cornerstone template'"
+
+  # --- Install Bulkhead design system via git subtree ---
+
+  bulkhead_repo   = "git@github.com:mbriggs/bulkhead.git"
+  bulkhead_prefix = "vendor/bulkhead"
+  bulkhead_remote = "bulkhead"
+
+  run "git remote add #{bulkhead_remote} #{bulkhead_repo}"
+  run "git fetch #{bulkhead_remote}"
+  run "git subtree add --prefix #{bulkhead_prefix} #{bulkhead_remote} master --squash"
+
+  # Add bulkhead gem to Gemfile (inject directly — we're past the bundle phase)
+  inject_into_file "Gemfile", after: /^gem "rails".*\n/ do
+    "gem \"bulkhead\", path: \"vendor/bulkhead\"\n"
+  end
+
+  # Create bin symlink
+  run "ln -s ../vendor/bulkhead/bin/bulkhead bin/bulkhead"
+
+  # Patch application.css to import bulkhead's Tailwind build
+  inject_into_file "app/assets/tailwind/application.css",
+    after: /@import "tailwindcss";\n/ do
+    "@import \"../builds/tailwind/bulkhead\";\n"
+  end
+
+  run "bundle install"
+  git add: "."
+  git commit: "-m 'Add Bulkhead design system'"
 end
