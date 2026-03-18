@@ -119,33 +119,11 @@ after_bundle do
   # dotfiles & root files
   %w[
     .claude/settings.local.json
-    .claude/skills/project-management/SKILL.md
-    .claude/skills/project-management/config
-    .claude/skills/project-management/claim
-    .claude/skills/project-management/claimed
-    .claude/skills/project-management/unclaim
-    .claude/skills/project-management/create-issue
-    .claude/skills/project-management/view-issue
-    .claude/skills/project-management/close-issue
-    .claude/skills/project-management/block-issue
-    .claude/skills/project-management/unblock-issue
-    .claude/skills/project-management/unblocked
-    .claude/skills/project-management/list-issues
-    .claude/skills/project-management/list-milestones
-    .claude/skills/project-management/milestone-status
-    .claude/skills/project-management/milestone
-    .claude/skills/project-management/add-milestone
-    .claude/skills/project-management/close-milestone
-    .claude/skills/project-management/move-issue
     .mcp.json
     .mise.toml
     .rubocop.yml
     Procfile.dev
     CLAUDE.md
-    PROMPT.md
-    REVIEW.md
-    ralph
-    skinner
   ].each { |f| copy_file f, force: true }
 
   # --- Migrations (copy with sequential timestamps) ---
@@ -223,14 +201,6 @@ after_bundle do
     bin/port-allocate bin/port-deallocate bin/mcp-setup
   ].each { |f| chmod f, 0o755 }
 
-  # Make project-management scripts, ralph, and skinner executable
-  chmod "ralph", 0o755
-  chmod "skinner", 0o755
-  Dir.glob(".claude/skills/project-management/*").each do |f|
-    next if f.end_with?("SKILL.md")
-    chmod f, 0o755
-  end
-
   # --- Replace APP_NAME placeholders ---
   # Only static config files get replaced. Bin scripts derive the app name
   # at runtime from the Rails module name in config/application.rb.
@@ -249,12 +219,6 @@ after_bundle do
 
   # Worktree-specific env (port, API tokens)
   worktree.env
-
-  # Ralph build loop logs
-  .ralph/
-
-  # Skinner review logs
-  .skinner/
   GITIGNORE
 
   # --- Print next-steps instructions ---

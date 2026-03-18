@@ -1,23 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git show:*)",
+      "Bash(bin/brakeman:*)",
+      "Bash(bin/ci:*)",
+      "Bash(bin/dev:*)",
+      "Bash(bin/rails test:*)",
+      "Bash(bin/rubocop:*)",
+      "Bash(bin/setup:*)",
+      "Bash(bundle:*)",
+      "Bash(gh api:*)",
+      "Bash(gh issue:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
       "Bash(git rev-parse:*)",
-      "Bash(gh issue:*)",
-      "Bash(gh api:*)",
-      "Bash(.claude/skills/project-management/*)",
-      "Bash(bin/ci:*)",
-      "Bash(bin/rails test:*)",
-      "Bash(bin/setup:*)",
-      "Bash(bin/dev:*)",
-      "Bash(bin/rubocop:*)",
-      "Bash(bin/brakeman:*)",
-      "Bash(bundle:*)"
+      "Bash(git show:*)",
+      "Bash(git status:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)"

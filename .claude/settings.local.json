@@ -4,8 +4,19 @@
       "Bash(gh api:*)",
       "Bash(find:*)",
       "Bash(chmod:*)",
-      "Read(//private/tmp/sync-test/**)",
-      "Bash(/Users/matt/cornerstone/bin/sync .)"
+      "Bash(git commit:*)",
+      "Bash(bin/rake test:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(which qmd:*)",
+      "Bash(npm search:*)",
+      "Read(//Users/matt/**)",
+      "Bash(qmd status:*)",
+      "Bash(qmd collection:*)",
+      "Bash(qmd search:*)",
+      "Bash(qmd query:*)",
+      "Bash(git add:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true
 }
