@@ -67,7 +67,7 @@ assert_file_not_contains() {
 
 echo "=== Generating app in $APP_DIR ==="
 cd "$TEMPLATE_DIR"
-rails new "$APP_NAME" --database=postgresql --css=tailwind -m "$TEMPLATE_DIR/template.rb"
+rails new "$APP_NAME" --database=postgresql -m "$TEMPLATE_DIR/template.rb"
 echo ""
 
 # --- File existence checks ---
@@ -104,6 +104,7 @@ assert_file_exists "config/initializers/rack_attack.rb"
 assert_file_exists "config/initializers/content_security_policy.rb"
 assert_file_exists "CLAUDE.md"
 assert_file_exists ".rubocop.yml"
+assert_file_exists "app/assets/stylesheets/application.css"
 
 # Tests
 assert_file_exists "test/models/user_test.rb"
@@ -116,6 +117,9 @@ assert_file_exists "test/test_helpers/api_test_helper.rb"
 assert_file_absent "lib/generators/google_auth/google_auth_generator.rb"
 assert_file_absent "config/initializers/omniauth.rb"
 assert_file_absent "test/fixtures/users.yml"
+assert_file_absent "bin/tailwind"
+assert_file_absent "app/assets/tailwind/application.css"
+assert_file_absent "vendor/bulkhead/lib/bulkhead/engine.rb"
 
 echo ""
 echo "=== Checking file contents ==="
@@ -147,17 +151,16 @@ assert_file_contains "config/routes.rb" "passwords"
 assert_file_not_contains "CLAUDE.md" "APP_NAME"
 assert_file_contains "CLAUDE.md" "$APP_NAME"
 
-# Gemfile: no omniauth, has bcrypt, has bulkhead
+# Gemfile: no omniauth or Tailwind UI dependency; has auth/infrastructure gems
 assert_file_not_contains "Gemfile" "omniauth"
+assert_file_not_contains "Gemfile" "tailwind"
+assert_file_not_contains "Gemfile" 'bulkhead'
 assert_file_contains "Gemfile" "bcrypt"
 assert_file_contains "Gemfile" "rack-attack"
 assert_file_contains "Gemfile" "bullet"
-assert_file_contains "Gemfile" 'bulkhead'
 
-# Bulkhead subtree
-assert_file_exists "vendor/bulkhead/lib/bulkhead/engine.rb"
-assert_file_exists "bin/bulkhead"
-assert_file_contains "app/assets/tailwind/application.css" "bulkhead"
+# Dev server no longer runs a CSS build watcher
+assert_file_not_contains "Procfile.dev" "tailwind"
 
 # Migrations exist in correct order (create before alter)
 echo ""

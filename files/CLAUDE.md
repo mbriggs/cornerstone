@@ -34,11 +34,10 @@ bin/brakeman --quiet --no-pager            # Security static analysis
 ## Tech Stack
 
 - Ruby 4.0.1, Rails 8.1, PostgreSQL
-- Tailwind CSS, Hotwire (Turbo + Stimulus), Propshaft + Importmaps (no Webpack)
+- Plain CSS, Hotwire (Turbo + Stimulus), Propshaft + Importmaps (no Webpack)
 - Jobs: SolidQueue (not Sidekiq), Action Cable: Solid Cable,
   Caching: Solid Cache (not Redis)
-- Anthropic API via `AnthropicClient` (custom `Net::HTTP` client, no gem).
-  Markdown rendering: `commonmarker` (with HTML sanitization)
+- Anthropic API via `AnthropicClient` (custom `Net::HTTP` client, no gem)
 - Minitest (not RSpec), custom `TestData` system (not YAML fixtures)
 - Authentication: Rails built-in (email/password, `has_secure_password`)
 
@@ -89,9 +88,9 @@ Helpers are the primary UI abstraction — not partials or view components.
 **ERB tags**: Never use `concat` in views. Use `<%= %>` for helpers that return
 HTML and `<% %>` for side-effect calls and control flow.
 
-**Container queries**: `<main>` has `@container`. Inside content use `@sm:`,
-`@md:`, `@lg:`, `@xl:` (not `sm:`, `md:`) — they measure content width, not
-viewport.
+**CSS**: Use semantic class names and app-level styles in
+`app/assets/stylesheets/application.css`. Prefer CSS custom properties for
+shared tokens and keep selectors scoped to the component or page they style.
 
 ## Code Comments
 

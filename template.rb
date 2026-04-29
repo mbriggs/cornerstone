@@ -1,7 +1,7 @@
 # Cornerstone — Rails Application Template
 #
 # Usage:
-#   rails new myapp --database=postgresql --css=tailwind -m ~/cornerstone/template.rb
+#   rails new myapp --database=postgresql -m ~/cornerstone/template.rb
 
 # =============================================================================
 # Phase 1: Gem additions (before bundle)
@@ -101,7 +101,6 @@ after_bundle do
     bin/dev
     bin/setup
     bin/work
-    bin/tailwind
     bin/loc
     bin/worktree-setup
     bin/worktree-teardown
@@ -190,7 +189,7 @@ after_bundle do
   # --- Make bin scripts executable ---
 
   %w[
-    bin/ci bin/dev bin/setup bin/work bin/tailwind bin/loc
+    bin/ci bin/dev bin/setup bin/work bin/loc
     bin/worktree-setup bin/worktree-teardown
     bin/port-allocate bin/port-deallocate bin/mcp-setup
   ].each { |f| chmod f, 0o755 }
@@ -238,31 +237,4 @@ after_bundle do
   git add: "."
   git commit: "-m 'Initial commit via Cornerstone template'"
 
-  # --- Install Bulkhead design system via git subtree ---
-
-  bulkhead_repo   = "git@github.com:mbriggs/bulkhead.git"
-  bulkhead_prefix = "vendor/bulkhead"
-  bulkhead_remote = "bulkhead"
-
-  run "git remote add #{bulkhead_remote} #{bulkhead_repo}"
-  run "git fetch #{bulkhead_remote}"
-  run "git subtree add --prefix #{bulkhead_prefix} #{bulkhead_remote} master --squash"
-
-  # Add bulkhead gem to Gemfile (inject directly — we're past the bundle phase)
-  inject_into_file "Gemfile", after: /^gem "rails".*\n/ do
-    "gem \"bulkhead\", path: \"vendor/bulkhead\"\n"
-  end
-
-  # Create bin symlink
-  run "ln -s ../vendor/bulkhead/bin/bulkhead bin/bulkhead"
-
-  # Patch application.css to import bulkhead's Tailwind build
-  inject_into_file "app/assets/tailwind/application.css",
-    after: /@import "tailwindcss";\n/ do
-    "@import \"../builds/tailwind/bulkhead\";\n"
-  end
-
-  run "bundle install"
-  git add: "."
-  git commit: "-m 'Add Bulkhead design system'"
 end
