@@ -7,17 +7,26 @@
 # ============================================================================
 # Hook Formats
 # ============================================================================
-# All hooks support two formats:
+# Hooks take one of three forms — pick by intent:
 #
 # Single command:
-#   post-create = "npm install"
+#   pre-start = "npm install"
 #
-# Named table (multiple commands):
-#   [post-create]
-#   deps = "npm install"
+# Pipeline (sequential steps, each step may run multiple commands concurrently):
+#   [[pre-start]]
+#   deps = "npm ci"
+#
+#   [[pre-start]]
 #   build = "npm run build"
+#   server = "npm run dev"
 #
-# Named commands appear in output, making it easier to identify failures.
+# Named table (concurrent commands — still valid for post-* hooks, but
+# DEPRECATED for pre-* hooks; use [[hook]] blocks there instead):
+#   [post-start]
+#   server = "npm run dev"
+#   watch  = "npm run watch"
+#
+# Named commands appear in output, making failures easier to identify.
 
 # ============================================================================
 # Template Variables — see https://worktrunk.dev/hook/#template-variables
@@ -38,50 +47,61 @@
 # ============================================================================
 # Hooks
 # ============================================================================
+# pre-* hooks BLOCK — failure aborts the operation.
+# post-* hooks run in the BACKGROUND — output logged (see `wt config state logs`).
+# Prefer post-start over pre-start unless a later step needs the work done first.
 
-# Post-Create: Runs after worktree creation, BLOCKS until complete
-# Use for: installing dependencies, setting up databases, copying configs
+# Pre-Start: runs once on worktree creation, BLOCKS the rest of `wt switch`.
+# Use for: provisioning that must be done before the worktree is usable
+# (dependency install, env file generation, database clone).
 #
-# [post-create]
+# [[pre-start]]
 # deps = "npm ci"
+#
+# [[pre-start]]
 # env = "cp .env.example .env"
 
-# Post-Start: Runs in BACKGROUND after worktree creation (parallel)
-# Use for: dev servers, file watchers, background builds
-# Output logged to .git/wt-logs/{branch}-project-post-start-{name}.log
+# Post-Start: runs once on worktree creation, in the BACKGROUND.
+# Use for: dev servers, file watchers, long builds, cache copies.
 #
 # [post-start]
 # server = "npm run dev -- --port {{ branch | hash_port }}"
-# watch = "npm run watch"
+# watch  = "npm run watch"
 
-# Post-Switch: Runs in BACKGROUND after every switch (parallel)
-# Use for: terminal tab naming, tmux window titles, IDE notifications
+# Post-Switch: runs in the BACKGROUND on every switch (create or re-enter).
+# Use for: terminal tab naming, tmux window titles, IDE notifications.
 #
 # post-switch = "echo -ne '\\033]0;{{ branch }}\\007'"
 
-# Pre-Commit: Runs before committing during merge, BLOCKS (fail-fast)
-# Use for: formatters, linters, quick checks
+# Pre-Commit: runs during `wt merge` before the squash commit, BLOCKS (fail-fast).
+# Use for: formatters, linters, quick checks.
 #
-# [pre-commit]
+# [[pre-commit]]
 # format = "npm run format:check"
-# lint = "npm run lint"
+# lint   = "npm run lint"
 
-# Pre-Merge: Runs before merging to target, BLOCKS (fail-fast)
-# Use for: tests, build verification
+# Pre-Merge: runs during `wt merge` after rebase, before merge to target, BLOCKS.
+# Use for: tests, build verification, security scans.
 #
-# [pre-merge]
-# test = "npm test"
+# [[pre-merge]]
+# test  = "npm test"
 # build = "npm run build"
 
-# Post-Merge: Runs after successful merge, BLOCKS
-# Use for: deployment, notifications
+# Post-Merge: runs after a successful merge, in the BACKGROUND.
+# Runs in the target branch's worktree if one exists, else the primary worktree.
+# Use for: deployment, notifications, installing updated binaries.
 #
 # post-merge = "echo 'Merged {{ branch }} to {{ target }}'"
 
-# Pre-Remove: Runs before worktree removal, BLOCKS (fail-fast)
-# Use for: cleanup, stopping services
+# Pre-Remove: runs before worktree removal, BLOCKS (fail-fast).
+# Use for: cleanup, stopping services, backing up state.
 #
 # pre-remove = "docker compose down"
+
+# Post-Remove: runs after worktree removal, in the BACKGROUND.
+# Use for: deallocating ports, removing containers, external cleanup.
+#
+# post-remove = "bin/port-deallocate {{ branch }}"
 
 # ============================================================================
 # Aliases (experimental) — run with `wt step <name>`
