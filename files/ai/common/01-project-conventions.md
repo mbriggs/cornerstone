@@ -1,11 +1,31 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with
-code in this repository.
+# Project conventions
 
 ## What is APP_NAME?
 
 TODO: Describe what this app does.
+
+## Stack
+
+- Ruby 4.0.5, Rails 8.1, PostgreSQL
+- Plain CSS, Hotwire (Turbo + Stimulus), Propshaft + Importmaps (no Webpack)
+- Jobs: SolidQueue (not Sidekiq), Action Cable: Solid Cable, Caching: Solid
+  Cache (not Redis)
+- Minitest (not RSpec), custom `TestData` system (not YAML fixtures)
+- Authentication: Rails built-in (email/password, `has_secure_password`)
+
+## CI / quality gates
+
+- **Always run `bin/ci` before committing** — never commit without passing CI
+  first. No exceptions.
+- If CI fails, fix the issues before committing.
+- Do not skip or defer CI to "run later" — the commit should not exist until CI
+  passes.
+
+`bin/agent-stop-check` runs on every Claude Code / Codex stop. It runs the
+read-only Rails gates: agent-config drift, RuboCop (without `-a`), and
+`bin/rails zeitwerk:check`. The full suite (`bin/ci`) — including tests,
+brakeman, bundler-audit, importmap audit, migration status — is the pre-commit
+gate, not the stop gate.
 
 ## Commands
 
@@ -23,27 +43,7 @@ bin/rubocop -a                             # Lint + auto-fix
 bin/brakeman --quiet --no-pager            # Security static analysis
 ```
 
-## Workflow [CRITICAL]
-
-- **Always run `bin/ci` before committing** — never commit without passing CI
-  first. No exceptions.
-- If CI fails, fix the issues before committing.
-- Do not skip or defer CI to "run later" — the commit should not exist until CI
-  passes.
-
-## Tech Stack
-
-- Ruby 4.0.1, Rails 8.1, PostgreSQL
-- Plain CSS, Hotwire (Turbo + Stimulus), Propshaft + Importmaps (no Webpack)
-- Jobs: SolidQueue (not Sidekiq), Action Cable: Solid Cable,
-  Caching: Solid Cache (not Redis)
-- Anthropic API via `AnthropicClient` (custom `Net::HTTP` client, no gem)
-- Minitest (not RSpec), custom `TestData` system (not YAML fixtures)
-- Authentication: Rails built-in (email/password, `has_secure_password`)
-
-## Architecture
-
-### Code organization [CRITICAL]
+## Code organization [CRITICAL]
 
 - Domain logic lives in `app/models/` — **never** create `app/services/`
   - Service objects: `app/models/payments/process_refund.rb`
@@ -56,7 +56,7 @@ bin/brakeman --quiet --no-pager            # Security static analysis
 - Infrastructure modules (`Logging`, `Credentials`, `Configuration`,
   `Retryable`) live in `lib/`
 
-### Module structure [CRITICAL]
+## Module structure [CRITICAL]
 
 - Keep modules flat (one level: `Inventory::Product`, never deeper)
 - Don't create modules for single classes — use root level instead
@@ -65,23 +65,12 @@ bin/brakeman --quiet --no-pager            # Security static analysis
 - Expose 1-3 classes as public API per module
 - Infrastructure models used everywhere go at root level
 
-### Input sanitization
-
-Two methods, two boundaries:
-
-- `InputSanitizer.sanitize(text)` — active policy: strips invisible chars,
-  normalizes to NFC, truncates. Called by the `Sanitizable` concern before
-  validation so all persisted text is clean regardless of entry point.
-- `InputSanitizer.sanitize!(text)` — assertion: raises `UnsanitizedError` if
-  dirty text reaches the API boundary. Called by `AnthropicClient` on user-role
-  message content.
-
-### Request-scoped state
+## Request-scoped state
 
 `Current` (ActiveSupport::CurrentAttributes) holds the current session/user.
 Controllers use an `Authentication` concern with cookie-based sessions.
 
-### UI pattern
+## UI pattern
 
 Helpers are the primary UI abstraction — not partials or view components.
 
@@ -92,7 +81,7 @@ HTML and `<% %>` for side-effect calls and control flow.
 `app/assets/stylesheets/application.css`. Prefer CSS custom properties for
 shared tokens and keep selectors scoped to the component or page they style.
 
-## Code Comments
+## Code comments
 
 - **Always** comment classes — what it is, how to use it.
 - **Always** comment public methods — what it does, not how.
@@ -100,11 +89,30 @@ shared tokens and keep selectors scoped to the component or page they style.
 - Use plain `#` comments (Rails rdoc style). No ASCII-art banners or section
   dividers.
 
-## Logging
+## Infrastructure mixins
 
-Use `include Logging` mixin (from `lib/logging.rb`), not `Rails.logger`.
-`config.x.logging` controls which loggers are active (taglist string, default
-`_all` via `LOGGING` env var). Narrow with e.g.
-`LOGGING="AnthropicClient->debug"`.
+Three sibling modules in `lib/` give classes declarative access to Rails-level
+state. Prefer the mixin form over reaching into globals.
 
-## Learnings
+- **`Logging`** — class-level loggers. `include Logging` instead of using
+  `Rails.logger`. `config.x.logging` is a taglist string
+  (e.g. `_all`, `MyClass->debug`, `-NoisyClass`) read from the `LOGGING` env
+  var. Loggers go to STDERR.
+- **`Credentials`** — `include Credentials::Accessor` and declare named
+  accessors with `credentials :aws_key, [:aws, :access_key]`, or call
+  `Credentials.read(:aws, :access_key)`. Falls back to env-keyed paths
+  (e.g. `development.aws.access_key`) before raising
+  `MissingCredentialsError`.
+- **`Configuration`** — `include Configuration::Accessor` and declare with
+  `config :logging, [:x, :logging]`, or call `Configuration.read(:x, :logging)`.
+  Auto-vivified empty `OrderedOptions` reads back as `nil`, not as truthy.
+
+## Project skills
+
+Use the skills under `skills/`:
+
+- `agent-config` — sources for generated agent instructions; how to keep
+  `CLAUDE.md` and `AGENTS.md` in sync.
+
+Keep this doc focused on invariants. Procedural, task-triggered guidance lives
+in skills.

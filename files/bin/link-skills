@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s nullglob
+
+# Keeps repo-owned skills linked into per-project Claude and Codex skill dirs.
+#
+# Both tools support a project-local skills directory:
+#   - Claude: <repo>/.claude/skills
+#   - Codex:  <repo>/.agents/skills  (scanned from cwd up to repo root)
+#
+# Both are committed relative symlinks to <repo>/skills, so each worktree
+# resolves to its own skills/ via relative path — no user-global state, no
+# per-worktree --adopt thrash.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE_DIR="$ROOT/skills"
+CLAUDE_LINK="$ROOT/.claude/skills"
+CODEX_LINK="$ROOT/.agents/skills"
+LINK_TARGET="../skills"
+LEGACY_CODEX_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
+CHECK=0
+FAILED=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --check)
+      CHECK=1
+      shift
+      ;;
+    --adopt)
+      # Retained for backward compat with bin/sync-agent-config; the new
+      # design has no user-global state to adopt. No-op.
+      shift
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ ! -d "$SOURCE_DIR" ]]; then
+  echo "Skills directory not found: $SOURCE_DIR" >&2
+  exit 1
+fi
+
+fail() {
+  FAILED=1
+  echo "$1" >&2
+}
+
+ensure_link() {
+  local link="$1"
+  local parent
+  parent="$(dirname "$link")"
+
+  if [[ -L "$link" ]]; then
+    local existing
+    existing="$(readlink "$link")"
+    if [[ "$existing" == "$LINK_TARGET" ]]; then
+      echo "ok     $link -> $existing"
+      return
+    fi
+    if [[ "$CHECK" -eq 1 ]]; then
+      fail "drift  $link -> $existing; expected $LINK_TARGET"
+      return
+    fi
+    rm -f "$link"
+  elif [[ -e "$link" ]]; then
+    if [[ "$CHECK" -eq 1 ]]; then
+      fail "drift  $link exists and is not a symlink"
+      return
+    fi
+    rm -rf "$link"
+  elif [[ "$CHECK" -eq 1 ]]; then
+    fail "missing $link -> $LINK_TARGET"
+    return
+  fi
+
+  mkdir -p "$parent"
+  ln -s "$LINK_TARGET" "$link"
+  echo "link   $link -> $LINK_TARGET"
+}
+
+# Tear down legacy user-global Codex symlinks for this project's skills.
+# The old design linked ~/.codex/skills/<name> -> <worktree>/skills/<name>,
+# which conflicted across worktrees. The new .agents/skills approach makes
+# these obsolete and they cause stop-hook drift when a sibling worktree
+# claimed them via --adopt.
+cleanup_legacy_codex_links() {
+  [[ -d "$LEGACY_CODEX_DIR" ]] || return 0
+
+  for skill in "$SOURCE_DIR"/*; do
+    [[ -d "$skill" ]] || continue
+    local name target
+    name="$(basename "$skill")"
+    target="$LEGACY_CODEX_DIR/$name"
+    [[ -L "$target" ]] || continue
+    if [[ "$CHECK" -eq 1 ]]; then
+      fail "legacy $target — re-run without --check to remove"
+    else
+      rm -f "$target"
+      echo "remove $target (legacy user-global link)"
+    fi
+  done
+}
+
+ensure_link "$CLAUDE_LINK"
+ensure_link "$CODEX_LINK"
+cleanup_legacy_codex_links
+
+if [[ "$FAILED" -ne 0 ]]; then
+  exit 1
+fi

@@ -1,6 +1,6 @@
 [env]
 _.path = ["./bin"]
-_.file = [".env", "worktree.env"]
+_.file = [".env", ".env.local", "worktree.env"]
 
 # jemalloc reduces heap fragmentation — fewer major GC pauses
 LD_PRELOAD.value = "{% set jemalloc = \"/usr/lib/x86_64-linux-gnu/libjemalloc.so.2\" %}{% if jemalloc is file %}{{jemalloc}}{% endif %}"
@@ -16,4 +16,4 @@ RUBY_GC_OLDMALLOC_LIMIT_MAX = "256000000"
 PORT = "{{ env.PORT | default(value='3000') }}"
 
 [tools]
-ruby = "4.0.1"
+ruby = "4.0.5"

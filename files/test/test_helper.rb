@@ -7,7 +7,6 @@ require_relative "../lib/test_data/fixture"
 require_relative "../lib/test_data/fixtures/users"
 require_relative "../lib/test_data/helpers"
 require_relative "test_helpers/session_test_helper"
-require_relative "test_helpers/anthropic_test_helper"
 require_relative "test_helpers/api_test_helper"
 require_relative "support/html_test_helper"
 
@@ -30,7 +29,6 @@ module ActiveSupport
 
     include TestData::Helpers
     include HtmlTestHelper
-    include AnthropicTestHelper
 
     # Single-process fallback (parallelize_setup doesn't fire with workers=1)
     def before_setup

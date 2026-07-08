@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/bin/agent-stop-check\"",
+            "timeout": 180,
+            "statusMessage": "RuboCop + zeitwerk + sync drift"
+          }
+        ]
+      }
+    ]
+  }
+}

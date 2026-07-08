@@ -42,7 +42,6 @@ after_bundle do
     lib/credentials.rb
     lib/configuration.rb
     lib/retryable.rb
-    lib/anthropic_client.rb
     lib/dev_tools.rb
     lib/test_data.rb
     lib/test_data/fixture.rb
@@ -55,9 +54,7 @@ after_bundle do
     app/models/user.rb
     app/models/session.rb
     app/models/api_token.rb
-    app/models/input_sanitizer.rb
     app/models/current.rb
-    app/models/concerns/sanitizable.rb
   ].each { |f| copy_file f, force: true }
 
   # app/controllers/concerns/
@@ -69,15 +66,29 @@ after_bundle do
   # test/
   %w[
     test/test_helper.rb
-    test/test_helpers/anthropic_test_helper.rb
     test/test_helpers/session_test_helper.rb
     test/test_helpers/api_test_helper.rb
     test/support/html_test_helper.rb
     test/models/user_test.rb
     test/models/session_test.rb
     test/models/api_token_test.rb
-    test/models/input_sanitizer_test.rb
     test/system/.keep
+  ].each { |f| copy_file f, force: true }
+
+  # ai/ agent-instruction sources (CLAUDE.md and AGENTS.md are generated)
+  %w[
+    ai/common/01-project-conventions.md
+    ai/rules/agent-config.md
+  ].each { |f| copy_file f, force: true }
+
+  # skills/ — project-owned skills
+  %w[
+    skills/agent-config/SKILL.md
+    skills/conditional-returns/SKILL.md
+    skills/crud-controllers/SKILL.md
+    skills/rails-async-jobs/SKILL.md
+    skills/rails-thin-controllers/SKILL.md
+    skills/ruby-visibility/SKILL.md
   ].each { |f| copy_file f, force: true }
 
   # config/
@@ -100,23 +111,31 @@ after_bundle do
     bin/ci
     bin/dev
     bin/setup
-    bin/work
+    bin/workers
     bin/loc
     bin/worktree-setup
     bin/worktree-teardown
     bin/port-allocate
     bin/port-deallocate
     bin/mcp-setup
+    bin/sync-agent-config
+    bin/link-skills
+    bin/agent-stop-check
   ].each { |f| copy_file f, force: true }
 
   # dotfiles & root files
   %w[
+    .claude/settings.json
     .claude/settings.local.json
+    .claude/hooks/post-edit.sh
+    .codex/hooks.json
+    .config/wt.toml
+    .env
+    .env.local.template
     .mcp.json
     .mise.toml
     .rubocop.yml
     Procfile.dev
-    CLAUDE.md
   ].each { |f| copy_file f, force: true }
 
   # --- Migrations (copy with sequential timestamps) ---
@@ -189,24 +208,44 @@ after_bundle do
   # --- Make bin scripts executable ---
 
   %w[
-    bin/ci bin/dev bin/setup bin/work bin/loc
+    bin/ci bin/dev bin/setup bin/workers bin/loc
     bin/worktree-setup bin/worktree-teardown
     bin/port-allocate bin/port-deallocate bin/mcp-setup
+    bin/sync-agent-config bin/link-skills bin/agent-stop-check
+    .claude/hooks/post-edit.sh
   ].each { |f| chmod f, 0o755 }
 
   # --- Replace APP_NAME placeholders ---
   # Only static config files get replaced. Bin scripts derive the app name
   # at runtime from the Rails module name in config/application.rb.
+  # CLAUDE.md/AGENTS.md are generated from ai/common, so APP_NAME is
+  # substituted in the source file before sync runs.
 
   %w[
     config/database.yml
     .mcp.json
-    CLAUDE.md
+    ai/common/01-project-conventions.md
   ].each do |f|
     gsub_file f, "APP_NAME", app_name
   end
 
-  # --- Add worktree.env to gitignore ---
+  # __APP_UPPER__ is the uppercase env-var prefix (e.g. MYAPP_USER_EMAIL).
+  gsub_file ".env.local.template", "__APP_UPPER__", app_name.upcase
+
+  # --- Generate CLAUDE.md / AGENTS.md / .claude/rules from ai/ sources ---
+
+  run "bin/sync-agent-config"
+
+  # --- Allow committing .env and .env.local.template ---
+  # Rails' default .gitignore has `/.env*` which would block both. Punch
+  # holes so the shared defaults and template are committable, while
+  # .env.local stays ignored.
+
+  gsub_file ".gitignore", /^\/\.env\*\s*$/, <<~GITIGNORE.chomp
+    /.env*
+    !/.env
+    !/.env.local.template
+  GITIGNORE
 
   append_to_file ".gitignore", <<~GITIGNORE
 
@@ -225,9 +264,9 @@ after_bundle do
   say "  3. bin/dev"
   say ""
   say "  - Add credentials: bin/rails credentials:edit"
-  say "    (add anthropic.api_key)"
   say "  - Add test fixtures in lib/test_data/fixtures/"
-  say "  - Update CLAUDE.md with your project description"
+  say "  - Describe the project: edit ai/common/01-project-conventions.md,"
+  say "    then run bin/sync-agent-config (regenerates CLAUDE.md + AGENTS.md)"
   say "  - Authenticate GitHub CLI: gh auth login"
   say ""
 
